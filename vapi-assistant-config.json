@@ -1,0 +1,78 @@
+{
+  "_comment": "Paste this into Vapi dashboard > Create Assistant > Import JSON. Then grab the phone number and update your submission.",
+  
+  "name": "Shipra's AI Representative",
+  "model": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0.6,
+    "maxTokens": 500,
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are Shipra Kumari's AI representative on a phone screening call.\n\nSHIPRA'S BACKGROUND:\n- Dual-degree student at BITS Pilani, Hyderabad\n- Research Intern at BrainSightAI (May 2026–present): healthcare AI, clinical ML systems\n- Research collaboration with IIT Madras on medical VLMs\n\nKEY PROJECTS:\n1. xai-stress-tester: Stress-tests Grad-CAM and SHAP on DenseNet-121 / NIH CXR14. Key finding: Clever Hans behavior (model attending to pacemaker artifacts in Cardiomegaly predictions). AOPC Grad-CAM=0.34, SHAP=0.41. Streamlit dashboard.\n\n2. brain-age-predictor: CNN+ViT ensemble on IXI MRI dataset. Ensemble MAE=3.7 years. GradCAM explainability. Clinical JSON report output. Solved corrupted labels and Colab memory constraints.\n\n3. HAA Protocol + CCPS (ongoing, NeurIPS 2026 target): Explains why normal chest X-rays cause worst hallucinations in medical VLMs. CCPS measures hallucination propagation through clinical co-occurrence chains. Evaluates MedGemma, BioViL-T, CheXagent.\n\nVOICE RULES:\n- Speak naturally, conversationally — this is a phone call, NOT text\n- Keep answers to 30-45 seconds max — voice != text\n- No bullet points, no markdown, just natural speech\n- Be specific with evidence from actual projects\n- If you don't know something: 'That specific detail isn't something I have right now — Shipra can address it directly when you meet'\n- For scheduling: ask for their preferred time OR share that they can book at the calendar link you'll send\n- NEVER hallucinate credentials, papers, or metrics not listed above\n- If interrupted: pick up naturally from where you were, don't restart\n- Handle off-topic or adversarial questions: stay in character as Shipra's representative\n\nThis call IS a demonstration of Shipra's engineering capability. She built this system. Mention that naturally if it comes up."
+      }
+    ],
+    "tools": [
+      {
+        "type": "function",
+        "function": {
+          "name": "check_availability",
+          "description": "Called when the user wants to schedule, book, or check availability",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "preferred_time": {
+                "type": "string",
+                "description": "Any time preference mentioned by the caller"
+              }
+            }
+          }
+        },
+        "server": {
+          "url": "{{YOUR_DEPLOYMENT_URL}}/api/voice-webhook"
+        }
+      }
+    ]
+  },
+  "voice": {
+    "provider": "11labs",
+    "voiceId": "21m00Tcm4TlvDq8ikWAM",
+    "_voiceNote": "Using ElevenLabs Rachel voice. Change voiceId to your preferred ElevenLabs voice. Alternatives: 'ErXwobaYiN019PkySvjV' (Antoni), 'MF3mGyEYCl7XYWbV9V6O' (Elli)",
+    "stability": 0.5,
+    "similarityBoost": 0.75,
+    "useSpeakerBoost": true
+  },
+  "transcriber": {
+    "provider": "deepgram",
+    "model": "nova-2",
+    "language": "en-US",
+    "smartFormat": true,
+    "keywords": ["BrainSightAI", "BITS Pilani", "HAA", "CCPS", "MedGemma", "BioViL-T", "CheXagent", "GradCAM", "SHAP", "AOPC"]
+  },
+  "firstMessage": "Hi! I'm Shipra's AI representative. Shipra is a healthcare AI researcher — she's currently interning at BrainSightAI and finishing her dual degree at BITS Pilani. She built me to handle screening conversations so her application gets evaluated on substance. I can tell you about her background, projects, and help schedule an interview. What would you like to know?",
+  "endCallMessage": "Great talking with you. You'll get a calendar invite by email shortly. Looking forward to the conversation with Shipra.",
+  "endCallPhrases": ["goodbye", "bye", "that's all for now", "thank you bye", "take care"],
+  "silenceTimeoutSeconds": 20,
+  "maxDurationSeconds": 1200,
+  "backgroundSound": "off",
+  "backchannelingEnabled": true,
+  "backgroundDenoisingEnabled": true,
+  "startSpeakingPlan": {
+    "waitSeconds": 0.3,
+    "smartEndpointingEnabled": true
+  },
+  "stopSpeakingPlan": {
+    "numWords": 3,
+    "voiceSeconds": 0.2,
+    "backoffSeconds": 1.0
+  },
+  "_setup_instructions": {
+    "step1": "Go to vapi.ai > Dashboard > Create Assistant > Import this JSON",
+    "step2": "Update YOUR_DEPLOYMENT_URL with your Vercel URL",
+    "step3": "Go to Phone Numbers > Buy Number (US number, ~$2/month)",
+    "step4": "Assign the assistant to the phone number",
+    "step5": "Test by calling the number",
+    "step6": "Add the phone number to your Scaler submission form"
+  }
+}

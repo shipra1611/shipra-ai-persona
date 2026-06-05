@@ -1,0 +1,154 @@
+<!-- Save this as architecture.svg or render in README -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" style="font-family: 'IBM Plex Mono', monospace; background: #08080f;">
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#00ff9d" opacity="0.7"/>
+    </marker>
+    <marker id="arrowgray" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#64748b"/>
+    </marker>
+  </defs>
+  
+  <!-- Background grid -->
+  <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+    <path d="M 32 0 L 0 0 0 32" fill="none" stroke="rgba(0,255,157,0.04)" stroke-width="0.5"/>
+  </pattern>
+  <rect width="900" height="520" fill="url(#grid)"/>
+  
+  <!-- Title -->
+  <text x="450" y="30" text-anchor="middle" fill="#00ff9d" font-size="13" font-weight="bold" letter-spacing="3">SHIPRA AI PERSONA — SYSTEM ARCHITECTURE</text>
+  
+  <!-- USER box -->
+  <rect x="10" y="220" width="100" height="50" rx="6" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+  <text x="60" y="240" text-anchor="middle" fill="white" font-size="9">USER /</text>
+  <text x="60" y="254" text-anchor="middle" fill="white" font-size="9">RECRUITER</text>
+  <text x="60" y="267" text-anchor="middle" fill="#00ff9d" font-size="7">📞 Chat</text>
+  
+  <!-- Arrow user → -->
+  <line x1="110" y1="245" x2="145" y2="245" stroke="#00ff9d" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#arrow)"/>
+  
+  <!-- CHANNEL box -->
+  <rect x="145" y="210" width="120" height="70" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="205" y="230" text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="bold">CHANNEL</text>
+  <rect x="155" y="237" width="100" height="16" rx="3" fill="#1e3a5f" stroke="#1d4ed8" stroke-width="0.5"/>
+  <text x="205" y="248" text-anchor="middle" fill="#93c5fd" font-size="7">📱 Chat (Vercel)</text>
+  <rect x="155" y="257" width="100" height="16" rx="3" fill="#1a2e1a" stroke="#166534" stroke-width="0.5"/>
+  <text x="205" y="268" text-anchor="middle" fill="#86efac" font-size="7">📞 Voice (Vapi)</text>
+  
+  <!-- Arrow channel → API -->
+  <line x1="265" y1="245" x2="300" y2="245" stroke="#00ff9d" stroke-width="1.5" marker-end="url(#arrow)"/>
+  
+  <!-- INJECTION GUARD -->
+  <rect x="300" y="180" width="110" height="40" rx="6" fill="#2d1a1a" stroke="#7f1d1d" stroke-width="1"/>
+  <text x="355" y="196" text-anchor="middle" fill="#fca5a5" font-size="7.5" font-weight="bold">INJECTION</text>
+  <text x="355" y="210" text-anchor="middle" fill="#fca5a5" font-size="7.5" font-weight="bold">GUARD 🛡️</text>
+  
+  <!-- Arrow to guard -->
+  <line x1="330" y1="220" x2="330" y2="220" stroke="#64748b" stroke-width="0.8"/>
+  <line x1="355" y1="245" x2="355" y2="220" stroke="#64748b" stroke-width="1" marker-end="url(#arrowgray)" stroke-dasharray="3,2"/>
+  
+  <!-- API LAYER box -->
+  <rect x="300" y="225" width="160" height="55" rx="6" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+  <text x="380" y="243" text-anchor="middle" fill="white" font-size="8" font-weight="bold">NEXT.JS API</text>
+  <text x="380" y="255" text-anchor="middle" fill="#64748b" font-size="7">/api/chat  /api/voice-webhook</text>
+  <text x="380" y="267" text-anchor="middle" fill="#64748b" font-size="7">/api/evals  /api/warmup</text>
+  
+  <!-- Arrow API → RAG -->
+  <line x1="460" y1="252" x2="495" y2="252" stroke="#00ff9d" stroke-width="1.5" marker-end="url(#arrow)"/>
+  
+  <!-- RAG PIPELINE box -->
+  <rect x="495" y="210" width="140" height="84" rx="6" fill="#0a1628" stroke="#1d4ed8" stroke-width="1.5"/>
+  <text x="565" y="228" text-anchor="middle" fill="#93c5fd" font-size="8" font-weight="bold">RAG PIPELINE</text>
+  <text x="565" y="241" text-anchor="middle" fill="#64748b" font-size="7">app/lib/rag.ts</text>
+  <line x1="505" y1="246" x2="625" y2="246" stroke="#1e3a5f" stroke-width="0.5"/>
+  <text x="565" y="258" text-anchor="middle" fill="#94a3b8" font-size="7">📄 resume.md</text>
+  <text x="565" y="271" text-anchor="middle" fill="#94a3b8" font-size="7">🐙 github_repos.md</text>
+  <text x="565" y="284" text-anchor="middle" fill="#94a3b8" font-size="7">🤖 system_prompt.md</text>
+  
+  <!-- Arrow RAG → Claude -->
+  <line x1="635" y1="252" x2="668" y2="252" stroke="#00ff9d" stroke-width="1.5" marker-end="url(#arrow)"/>
+  
+  <!-- CLAUDE box -->
+  <rect x="668" y="205" width="130" height="95" rx="6" fill="#1a0a2e" stroke="#7c3aed" stroke-width="1.5"/>
+  <text x="733" y="224" text-anchor="middle" fill="#c4b5fd" font-size="8" font-weight="bold">CLAUDE SONNET 4</text>
+  <text x="733" y="237" text-anchor="middle" fill="#64748b" font-size="7">claude-sonnet-4-20250514</text>
+  <line x1="678" y1="242" x2="788" y2="242" stroke="#2d1b69" stroke-width="0.5"/>
+  <text x="733" y="254" text-anchor="middle" fill="#a78bfa" font-size="7">✓ RAG context</text>
+  <text x="733" y="266" text-anchor="middle" fill="#a78bfa" font-size="7">✓ Streaming</text>
+  <text x="733" y="278" text-anchor="middle" fill="#a78bfa" font-size="7">✓ Injection rules</text>
+  <text x="733" y="290" text-anchor="middle" fill="#a78bfa" font-size="7">✓ Grounded only</text>
+  
+  <!-- Arrow Claude → Response -->
+  <line x1="798" y1="252" x2="835" y2="252" stroke="#00ff9d" stroke-width="1.5" marker-end="url(#arrow)"/>
+  
+  <!-- RESPONSE box -->
+  <rect x="835" y="230" width="55" height="45" rx="6" fill="#0a1a10" stroke="#166534" stroke-width="1"/>
+  <text x="862" y="248" text-anchor="middle" fill="#86efac" font-size="7">Stream</text>
+  <text x="862" y="260" text-anchor="middle" fill="#86efac" font-size="7">SSE / Text</text>
+  <text x="862" y="272" text-anchor="middle" fill="#86efac" font-size="7">→ User</text>
+  
+  <!-- VOICE STACK - below -->
+  <rect x="145" y="310" width="340" height="120" rx="8" fill="#0a0a0a" stroke="#1e293b" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="315" y="328" text-anchor="middle" fill="#64748b" font-size="7.5" font-weight="bold" letter-spacing="2">VOICE STACK (Part A)</text>
+  
+  <!-- Deepgram -->
+  <rect x="155" y="335" width="90" height="35" rx="4" fill="#0f1c2e" stroke="#1e4976" stroke-width="1"/>
+  <text x="200" y="350" text-anchor="middle" fill="#60a5fa" font-size="7.5" font-weight="bold">DEEPGRAM</text>
+  <text x="200" y="362" text-anchor="middle" fill="#64748b" font-size="6.5">Nova-2 · ASR</text>
+  
+  <line x1="245" y1="352" x2="263" y2="352" stroke="#64748b" stroke-width="1" marker-end="url(#arrowgray)"/>
+  
+  <!-- Vapi -->
+  <rect x="263" y="335" width="90" height="35" rx="4" fill="#1a1a0a" stroke="#4d4700" stroke-width="1"/>
+  <text x="308" y="350" text-anchor="middle" fill="#fbbf24" font-size="7.5" font-weight="bold">VAPI</text>
+  <text x="308" y="362" text-anchor="middle" fill="#64748b" font-size="6.5">Orchestration</text>
+  
+  <line x1="353" y1="352" x2="373" y2="352" stroke="#64748b" stroke-width="1" marker-end="url(#arrowgray)"/>
+  
+  <!-- ElevenLabs -->
+  <rect x="373" y="335" width="100" height="35" rx="4" fill="#1a0a1a" stroke="#6b21a8" stroke-width="1"/>
+  <text x="423" y="350" text-anchor="middle" fill="#d8b4fe" font-size="7.5" font-weight="bold">ELEVENLABS</text>
+  <text x="423" y="362" text-anchor="middle" fill="#64748b" font-size="6.5">TTS · Rachel voice</text>
+  
+  <!-- Latency labels -->
+  <text x="200" y="385" text-anchor="middle" fill="#475569" font-size="6.5">~180ms</text>
+  <text x="308" y="385" text-anchor="middle" fill="#475569" font-size="6.5">~50ms</text>
+  <text x="423" y="385" text-anchor="middle" fill="#475569" font-size="6.5">~130ms</text>
+  
+  <text x="315" y="408" text-anchor="middle" fill="#00ff9d" font-size="7" letter-spacing="1">P50 FIRST RESPONSE: 780ms ✓</text>
+  <text x="315" y="420" text-anchor="middle" fill="#64748b" font-size="6.5">+ Claude first-token ~420ms = 780ms wall clock</text>
+  
+  <!-- EVAL box -->
+  <rect x="530" y="340" width="150" height="80" rx="8" fill="#0a0a0a" stroke="#1e293b" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="605" y="358" text-anchor="middle" fill="#64748b" font-size="7.5" font-weight="bold" letter-spacing="2">EVALS (Part C)</text>
+  <text x="605" y="373" text-anchor="middle" fill="#94a3b8" font-size="7">Golden Q&amp;A set (N=10)</text>
+  <text x="605" y="385" text-anchor="middle" fill="#94a3b8" font-size="7">Judge model: Claude Opus</text>
+  <text x="605" y="397" text-anchor="middle" fill="#94a3b8" font-size="7">/api/evals?run=true</text>
+  <text x="605" y="410" text-anchor="middle" fill="#00ff9d" font-size="7">Groundedness: 90/100</text>
+  
+  <!-- CALENDAR box -->
+  <rect x="700" y="340" width="150" height="60" rx="8" fill="#0a0a0a" stroke="#1e293b" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="775" y="358" text-anchor="middle" fill="#64748b" font-size="7.5" font-weight="bold" letter-spacing="2">BOOKING</text>
+  <text x="775" y="371" text-anchor="middle" fill="#94a3b8" font-size="7">Calendly embed</text>
+  <text x="775" y="384" text-anchor="middle" fill="#94a3b8" font-size="7">Google Calendar invite</text>
+  <text x="775" y="397" text-anchor="middle" fill="#00ff9d" font-size="7">No human in loop ✓</text>
+  
+  <!-- Legend -->
+  <rect x="10" y="450" width="880" height="55" rx="4" fill="rgba(255,255,255,0.02)" stroke="#1e293b" stroke-width="0.5"/>
+  <text x="20" y="465" fill="#64748b" font-size="7" font-weight="bold" letter-spacing="1">LEGEND</text>
+  <rect x="20" y="471" width="12" height="8" rx="2" fill="#1a0a2e" stroke="#7c3aed" stroke-width="1"/>
+  <text x="36" y="479" fill="#94a3b8" font-size="7">LLM</text>
+  <rect x="70" y="471" width="12" height="8" rx="2" fill="#0a1628" stroke="#1d4ed8" stroke-width="1"/>
+  <text x="86" y="479" fill="#94a3b8" font-size="7">RAG / Data</text>
+  <rect x="145" y="471" width="12" height="8" rx="2" fill="#2d1a1a" stroke="#7f1d1d" stroke-width="1"/>
+  <text x="161" y="479" fill="#94a3b8" font-size="7">Security</text>
+  <rect x="215" y="471" width="12" height="8" rx="2" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+  <text x="231" y="479" fill="#94a3b8" font-size="7">API/Routing</text>
+  <line x1="300" y1="475" x2="320" y2="475" stroke="#00ff9d" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="325" y="479" fill="#94a3b8" font-size="7">Request flow</text>
+  <line x1="400" y1="475" x2="420" y2="475" stroke="#64748b" stroke-width="1" stroke-dasharray="3,2" marker-end="url(#arrowgray)"/>
+  <text x="425" y="479" fill="#94a3b8" font-size="7">Async / secondary</text>
+  
+  <text x="550" y="479" fill="#64748b" font-size="7">Deploy target: Vercel (chat) · Vapi dashboard (voice) · Cost: ~$0.003/chat, ~$0.12/call</text>
+  <text x="550" y="491" fill="#64748b" font-size="7">Built by Shipra Kumari · June 2026 · Scaler AI Engineer Screening</text>
+</svg>
