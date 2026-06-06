@@ -25,10 +25,9 @@ const LINKEDIN_URL =
   'https://linkedin.com/in/shipra-pathak'
 
 const VAPI_PUBLIC_KEY =
-  '97844602-6d09-46d6-9abe-cbfa74480028'
-
+  process.env.VAPI_PUBLIC_KEY!
 const VAPI_ASSISTANT_ID =
-  '50ad1c0c-24fc-4680-a381-bdb2fba832b2'
+process.env.VAPI_ASSISTANT_ID!
 
 function renderMarkdown(
   text: string
