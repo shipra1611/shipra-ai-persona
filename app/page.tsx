@@ -18,24 +18,17 @@ interface Message {
   latencyMs?: number
 }
 
-const CALENDLY_URL =
-  process.env
-    .NEXT_PUBLIC_CALENDLY_URL ||
-  'https://calendly.com/f20231038-hyderabad/new-meeting'
-
 const GITHUB_URL =
   'https://github.com/shipra1611'
 
 const LINKEDIN_URL =
   'https://linkedin.com/in/shipra-pathak'
 
-
-
 const VAPI_PUBLIC_KEY =
   '97844602-6d09-46d6-9abe-cbfa74480028'
 
 const VAPI_ASSISTANT_ID =
-  '8e0328a2-4a00-45bb-91d2-64fae64bc0b8'
+  '50ad1c0c-24fc-4680-a381-bdb2fba832b2'
 
 function renderMarkdown(
   text: string
@@ -70,16 +63,21 @@ export default function Home() {
         role: 'assistant',
         content: `Hi, I'm Shipra Pathak's AI engineering assistant.
 
-I can answer questions about:
-- AI systems projects
-- ML infrastructure
-- research workflows
-- debugging approaches
-- system design tradeoffs
-- deployment decisions
-- internships and experience
+I can help recruiters understand:
 
-I'm grounded on Shipra's real resume and GitHub repositories.`,
+- AI systems projects
+- medical imaging AI
+- brain tumor segmentation
+- clinical ML systems
+- LLM pipelines
+- RAG architectures
+- infrastructure engineering
+- debugging workflows
+- deployment systems
+- research experience
+- internships and technical fit
+
+You can also start a live voice interview using the voice assistant button above.`,
         timestamp: Date.now(),
       },
     ])
@@ -89,11 +87,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
 
   const [isLoading, setIsLoading] =
     useState(false)
-
-  const [
-    showCalendly,
-    setShowCalendly,
-  ] = useState(false)
 
   const [
     isCallActive,
@@ -345,8 +338,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
           flexDirection: 'column',
         }}
       >
-        {/* HEADER */}
-
         <header
           style={{
             position: 'sticky',
@@ -439,11 +430,11 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
                     padding:
                       '10px 16px',
                     background:
-                      '#ffffff',
-                    color:
                       '#0f172a',
+                    color:
+                      'white',
                     border:
-                      '1px solid rgba(203,213,225,0.8)',
+                      'none',
                     borderRadius:
                       '10px',
                     cursor:
@@ -477,34 +468,9 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
                   End Voice Interview
                 </button>
               )}
-
-              <button
-                onClick={() =>
-                  setShowCalendly(
-                    true
-                  )
-                }
-                style={{
-                  padding:
-                    '10px 16px',
-                  background:
-                    '#0f172a',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius:
-                    '10px',
-                  cursor:
-                    'pointer',
-                  fontWeight: 600,
-                }}
-              >
-                Book Interview
-              </button>
             </div>
           </div>
         </header>
-
-        {/* CHAT */}
 
         <main
           style={{
@@ -554,8 +520,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
                         '18px 20px',
                       lineHeight: 1.75,
                       fontSize: '15px',
-                      boxShadow:
-                        '0 4px 12px rgba(15,23,42,0.04)',
                     }}
                   >
                     {msg.role ===
@@ -575,24 +539,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
                         }
                       </span>
                     )}
-
-                    {msg.latencyMs && (
-                      <div
-                        style={{
-                          marginTop:
-                            '10px',
-                          fontSize:
-                            '12px',
-                          color:
-                            '#94a3b8',
-                        }}
-                      >
-                        {
-                          msg.latencyMs
-                        }
-                        ms
-                      </div>
-                    )}
                   </div>
                 </div>
               )
@@ -607,8 +553,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
             />
           </div>
         </main>
-
-        {/* INPUT */}
 
         <div
           style={{
@@ -688,8 +632,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
           </div>
         </div>
 
-        {/* VOICE OVERLAY */}
-
         {showVoiceOverlay && (
           <div
             style={{
@@ -725,8 +667,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
                 color: 'white',
                 fontSize: '44px',
                 fontWeight: 700,
-                boxShadow:
-                  '0 0 60px rgba(59,130,246,0.35)',
                 animation:
                   'pulse 2s infinite',
               }}
@@ -776,53 +716,6 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
             >
               End Conversation
             </button>
-          </div>
-        )}
-
-        {/* CALENDLY */}
-
-        {showCalendly && (
-          <div
-            onClick={() =>
-              setShowCalendly(
-                false
-              )
-            }
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background:
-                'rgba(15,23,42,0.45)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent:
-                'center',
-              padding: '20px',
-              zIndex: 100,
-            }}
-          >
-            <div
-              onClick={(e) =>
-                e.stopPropagation()
-              }
-              style={{
-                width: '100%',
-                maxWidth: '760px',
-                height: '80vh',
-                background:
-                  'white',
-                borderRadius:
-                  '18px',
-                overflow:
-                  'hidden',
-              }}
-            >
-              <iframe
-                src={CALENDLY_URL}
-                width="100%"
-                height="100%"
-              />
-            </div>
           </div>
         )}
       </div>

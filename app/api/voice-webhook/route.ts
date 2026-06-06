@@ -1,367 +1,395 @@
 
+// app/api/voice-webhook/route.ts
+
+import { createMeeting } from "../../lib/calendar"
+
+import fs from "fs"
+import path from "path"
+
+import * as chrono from "chrono-node"
+
 import {
   NextRequest,
   NextResponse,
-} from 'next/server'
-
-import Anthropic from '@anthropic-ai/sdk'
+} from "next/server"
 
 import {
-  buildRAGContext,
-  loadSystemPrompt,
-} from '@/app/lib/rag'
+  GoogleGenerativeAI,
+} from "@google/generative-ai"
 
-export const runtime = 'nodejs'
+export const runtime = "nodejs"
 
-const client = new Anthropic({
-  apiKey:
-    process.env
-      .ANTHROPIC_API_KEY!,
-})
+// ======================================================
+// GEMINI SETUP
+// ======================================================
 
-const CALENDLY_URL =
-  process.env
-    .CALENDLY_URL ||
-  'https://calendly.com/f20231038-hyderabad/new-meeting'
+const genAI =
+  new GoogleGenerativeAI(
+    process.env.GEMINI_API_KEY!
+  )
+
+const model =
+  genAI.getGenerativeModel({
+    model: "gemini-1.5-flash",
+  })
+
+// ======================================================
+// LOAD KNOWLEDGE FILES
+// ======================================================
+
+const githubRepos =
+  fs.readFileSync(
+    path.join(
+      process.cwd(),
+      "data/github_repos.md"
+    ),
+    "utf-8"
+  )
+
+const resumeData =
+  fs.readFileSync(
+    path.join(
+      process.cwd(),
+      "data/resume.md"
+    ),
+    "utf-8"
+  )
+
+const systemPromptFile =
+  fs.readFileSync(
+    path.join(
+      process.cwd(),
+      "data/system_prompt.md"
+    ),
+    "utf-8"
+  )
+
+// ======================================================
+// GEMINI ANSWERING
+// ======================================================
+
+async function askGemini(
+  question: string
+) {
+
+  const prompt = `
+${systemPromptFile}
+
+================ RESUME ================
+${resumeData}
+
+================ PROJECTS ================
+${githubRepos}
+
+================ QUESTION ================
+${question}
+
+STRICT RULES:
+- ONLY use information provided above
+- NEVER invent internships
+- NEVER invent companies
+- NEVER invent metrics
+- NEVER invent projects
+- NEVER invent research papers
+- NEVER hallucinate credentials
+- If uncertain, say you do not know
+- Keep responses concise
+- Keep under 120 words
+- Sound conversational for voice calls
+`
+
+  try {
+
+    const result =
+      await model.generateContent(
+        prompt
+      )
+
+    return result.response.text()
+
+  } catch (error) {
+
+    console.error(
+      "GEMINI ERROR:",
+      error
+    )
+
+    return `
+I'm sorry — I had trouble answering that properly.
+
+But I can still help explain Shipra's projects, healthcare AI work, engineering background, or schedule a meeting.
+`
+  }
+}
+
+// ======================================================
+// MOCK AVAILABILITY
+// ======================================================
+
+async function getAvailableSlots() {
+
+  return `
+Shipra currently has availability on:
+
+- Monday at 5 PM IST
+- Tuesday at 4 PM IST
+- Wednesday at 6 PM IST
+
+Do any of those work for you?
+`
+}
+
+// ======================================================
+// EMAIL NORMALIZATION
+// ======================================================
+
+function normalizeEmail(
+  input: string
+) {
+
+  return input
+    .replace(/ at the rate /gi, "@")
+    .replace(/ at /gi, "@")
+    .replace(/ dot /gi, ".")
+    .replace(/\s+/g, "")
+    .toLowerCase()
+}
+
+// ======================================================
+// WEBHOOK
+// ======================================================
 
 export async function POST(
   req: NextRequest
 ) {
+
   try {
+
     const body =
       await req.json()
 
-    console.log(
-      'Vapi webhook:',
-      JSON.stringify(
-        body,
-        null,
-        2
-      )
-    )
+    const message =
+      body.message
 
-    const { message } = body
+    if (!message) {
 
-    switch (
-      message?.type
+      return NextResponse.json({
+        received: true,
+      })
+    }
+
+    // ==================================================
+    // FUNCTION CALLS
+    // ==================================================
+
+    if (
+      message.type ===
+      "function-call"
     ) {
-      case 'assistant-request': {
-        return NextResponse.json({
-          assistant:
-            buildVapiAssistant(),
-        })
+
+      const functionName =
+        message.functionCall?.name
+
+      const params =
+        message.functionCall
+          ?.parameters || {}
+
+      let result = ""
+
+      // ================================================
+      // BACKGROUND QUESTIONS
+      // ================================================
+
+      if (
+        functionName ===
+        "get_background_info"
+      ) {
+
+        result =
+          await askGemini(
+            params.query || ""
+          )
       }
 
-      case 'function-call': {
-        const functionCall =
-          message.functionCall
+      // ================================================
+      // CHECK AVAILABILITY
+      // ================================================
 
-        // OPEN SCHEDULING
-        if (
-          functionCall?.name ===
-          'open_scheduling'
-        ) {
-          return NextResponse.json(
-            {
-              result:
-                'Opening the scheduling window now. You can choose any convenient slot directly through Calendly.',
+      else if (
+        functionName ===
+        "check_availability"
+      ) {
 
-              actions: [
-                {
-                  type: 'open_url',
+        result =
+          await getAvailableSlots()
+      }
 
-                  url: CALENDLY_URL,
-                },
-              ],
-            }
-          )
+      // ================================================
+      // BOOK MEETING
+      // ================================================
+
+      else if (
+        functionName ===
+        "book_meeting"
+      ) {
+
+        const preferredTime =
+          params.preferredTime
+
+        let callerEmail =
+          params.callerEmail
+
+        if (!preferredTime) {
+
+          return NextResponse.json({
+            result:
+              "Could you repeat the preferred meeting date and time?",
+          })
         }
 
-        // RAG CONTEXT LOOKUP
-        if (
-          functionCall?.name ===
-          'get_context'
-        ) {
-          const query =
-            functionCall
-              ?.parameters
-              ?.query || ''
+        if (!callerEmail) {
 
-          const ragContext =
-            buildRAGContext(
-              query
-            )
+          return NextResponse.json({
+            result:
+              "Could you share the best email for the calendar invite?",
+          })
+        }
 
-          const systemPrompt =
-            loadSystemPrompt()
+        callerEmail =
+          normalizeEmail(
+            callerEmail
+          )
 
-          const response =
-            await client.messages.create(
+        try {
+
+          const parsedDate =
+            chrono.parseDate(
+              preferredTime,
+              new Date(),
               {
-                model:
-                  'claude-sonnet-4-20250514',
-
-                max_tokens: 350,
-
-                system: `
-${systemPrompt}
-
-KNOWLEDGE BASE:
-${ragContext}
-
-IMPORTANT:
-- Respond naturally for voice
-- No markdown
-- No bullet points
-- Keep answers concise
-- Sound conversational
-                `,
-
-                messages: [
-                  {
-                    role:
-                      'user',
-
-                    content:
-                      query,
-                  },
-                ],
+                forwardDate: true,
               }
             )
 
-          let answer = ''
+          if (!parsedDate) {
 
-          for (const block of response.content) {
-            if (
-              block.type ===
-              'text'
-            ) {
-              answer +=
-                block.text
-            }
-          }
-
-          return NextResponse.json(
-            {
+            return NextResponse.json({
               result:
-                answer ||
-                "I can help with that. Could you clarify what you'd like to know about Shipra?",
-            }
-          )
-        }
-
-        return NextResponse.json({
-          result:
-            'Function not recognized.',
-        })
-      }
-
-      case 'end-of-call-report': {
-        console.log(
-          'Call ended:',
-          {
-            duration:
-              message.durationSeconds,
-
-            summary:
-              message.summary,
-
-            transcript:
-              message.transcript?.slice(
-                0,
-                500
-              ),
+                "I couldn't clearly understand the requested date and time. Could you repeat it?",
+            })
           }
-        )
 
-        return NextResponse.json({
-          received: true,
-        })
+          const start =
+            parsedDate
+
+          const end =
+            new Date(
+              start.getTime() +
+              30 * 60 * 1000
+            )
+
+          console.log(
+            "BOOKING REQUEST:",
+            callerEmail,
+            start.toISOString()
+          )
+
+          const meeting =
+            await createMeeting(
+              callerEmail,
+              start.toISOString(),
+              end.toISOString()
+            )
+
+          console.log(
+            "MEETING RESULT:",
+            meeting
+          )
+
+          if (!meeting.success) {
+
+            return NextResponse.json({
+              result:
+                "I was unable to create the calendar event due to a technical issue. Please try another slot.",
+            })
+          }
+
+          const meetLink =
+            meeting.hangoutLink || ""
+
+          result = `
+Perfect.
+
+Your meeting with Shipra has been successfully scheduled.
+
+A Google Calendar invite has been sent to ${callerEmail}.
+
+${meetLink
+  ? `Google Meet link: ${meetLink}`
+  : ""}
+`
+        } catch (error) {
+
+          console.error(
+            "BOOKING ERROR:",
+            error
+          )
+
+          result = `
+I encountered a scheduling issue while creating the meeting.
+
+Please try another slot.
+`
+        }
       }
 
-      default: {
-        return NextResponse.json({
-          received: true,
-        })
+      // ================================================
+      // UNKNOWN FUNCTION
+      // ================================================
+
+      else {
+
+        result = `
+I can help explain Shipra's:
+
+- AI systems projects
+- healthcare AI work
+- observability tooling
+- engineering background
+
+or help schedule a meeting.
+`
       }
+
+      return NextResponse.json({
+        result,
+      })
     }
+
+    // ==================================================
+    // DEFAULT RESPONSE
+    // ==================================================
+
+    return NextResponse.json({
+      received: true,
+    })
+
   } catch (error) {
+
     console.error(
-      'Voice webhook error:',
+      "WEBHOOK ERROR:",
       error
     )
 
     return NextResponse.json(
       {
         error:
-          'Webhook processing failed.',
+          "Internal server error",
       },
       {
         status: 500,
       }
     )
   }
-}
-
-function buildVapiAssistant() {
-  return {
-    name:
-      "Shipra Recruiting Assistant",
-
-    firstMessage:
-      "Hi, I'm Shipra Pathak's AI recruiting representative. Shipra is an AI systems engineer focused on healthcare AI, observability tooling, and reliable AI infrastructure. She built this voice system herself as part of her engineering work. I can discuss her projects, technical background, and help schedule a conversation. What would you like to know?",
-
-    endCallMessage:
-      "Great speaking with you. You can use Shipra's scheduling link to book a convenient time to connect further.",
-
-    endCallPhrases: [
-      'goodbye',
-      'bye',
-      "that's all",
-      'thank you bye',
-      'take care',
-    ],
-
-    silenceTimeoutSeconds: 20,
-
-    maxDurationSeconds: 1200,
-
-    backgroundSound: 'off',
-
-    backchannelingEnabled: true,
-
-    backgroundDenoisingEnabled: true,
-
-    startSpeakingPlan: {
-      waitSeconds: 0.3,
-
-      smartEndpointingEnabled: true,
-    },
-
-    stopSpeakingPlan: {
-      numWords: 3,
-
-      voiceSeconds: 0.2,
-
-      backoffSeconds: 1,
-    },
-
-    voice: {
-      provider: '11labs',
-
-      voiceId:
-        '21m00Tcm4TlvDq8ikWAM',
-
-      stability: 0.45,
-
-      similarityBoost: 0.8,
-
-      useSpeakerBoost: true,
-    },
-
-    model: {
-      provider:
-        'anthropic',
-
-      model:
-        'claude-sonnet-4-20250514',
-
-      temperature: 0.5,
-
-      maxTokens: 400,
-
-      systemPrompt:
-        buildVoiceSystemPrompt(),
-
-      functions: [
-        {
-          name:
-            'get_context',
-
-          description:
-            "Retrieve grounded information about Shipra's projects, background, research, or engineering work.",
-
-          parameters: {
-            type: 'object',
-
-            properties: {
-              query: {
-                type: 'string',
-
-                description:
-                  'Question about Shipra',
-              },
-            },
-
-            required: ['query'],
-          },
-        },
-
-        {
-          name:
-            'open_scheduling',
-
-          description:
-            'Open the Calendly scheduling flow when the caller wants to schedule an interview or meeting.',
-
-          parameters: {
-            type: 'object',
-
-            properties: {
-              intent: {
-                type: 'string',
-
-                description:
-                  'Scheduling intent',
-              },
-            },
-          },
-        },
-      ],
-    },
-  }
-}
-
-function buildVoiceSystemPrompt() {
-  const ragContext =
-    buildRAGContext(
-      'general background projects skills experience'
-    )
-
-  return `
-You are Shipra Pathak's AI recruiting representative.
-
-You are speaking with:
-- recruiters
-- engineering managers
-- startup founders
-- AI researchers
-- hiring teams
-
-Your purpose is to represent Shipra as:
-- technically strong
-- highly ambitious
-- systems-oriented
-- practical
-- thoughtful
-- fast-learning
-- production-minded
-
-IMPORTANT RULES:
-- Keep answers concise for voice
-- Speak naturally and conversationally
-- Never sound robotic
-- Avoid long monologues
-- Never hallucinate credentials or experience
-- If you do not know something, say so honestly
-- Never claim a meeting has been booked unless confirmed externally
-- Direct users to Calendly for scheduling
-- Handle interruptions naturally
-
-BACKGROUND KNOWLEDGE:
-${ragContext.slice(0, 4000)}
-
-This voice system itself was designed and engineered by Shipra as part of her AI systems work.
-`
 }
 
