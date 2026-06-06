@@ -1,92 +1,109 @@
 
-// app/lib/calendar.ts
-
 import { google } from "googleapis"
 
-import serviceAccount
-from "../../service-account.json"
+const calendar = google.calendar("v3")
 
-const auth =
-  new google.auth.GoogleAuth({
+const auth = new google.auth.GoogleAuth({
+  keyFile: "credentials.json",
 
-    credentials: serviceAccount,
-
-    scopes: [
-      "https://www.googleapis.com/auth/calendar",
-    ],
-  })
+  scopes: [
+    "https://www.googleapis.com/auth/calendar",
+  ],
+})
 
 export async function createMeeting(
-  attendeeEmail: string,
-  startISO: string,
-  endISO: string
+  email: string,
+  startTime: string,
+  endTime: string
 ) {
 
-  const calendar =
-    google.calendar({
-      version: "v3",
-      auth,
-    })
+  try {
 
-  const event = {
+    const authClient =
+      await auth.getClient()
 
-    summary:
-      "Interview with Shipra Pathak",
+  google.options({
+  auth: authClient as any,
+})
 
-    description:
-      "Scheduled by Shipra AI Assistant",
+    const event = {
 
-    start: {
-      dateTime: startISO,
-      timeZone: "Asia/Kolkata",
-    },
+      summary:
+        "Interview with Shipra Pathak",
 
-    end: {
-      dateTime: endISO,
-      timeZone: "Asia/Kolkata",
-    },
+      description:
+        "Scheduled via Shipra AI Assistant",
 
-    attendees: [
-      {
-        email: attendeeEmail,
+      start: {
+        dateTime: startTime,
+        timeZone: "Asia/Kolkata",
       },
-    ],
 
-    conferenceData: {
-      createRequest: {
-        requestId:
-          `shipra-${Date.now()}`,
+      end: {
+        dateTime: endTime,
+        timeZone: "Asia/Kolkata",
       },
-    },
+
+      attendees: [
+        {
+          email,
+        },
+      ],
+
+      conferenceData: {
+        createRequest: {
+          requestId:
+            Date.now().toString(),
+
+          conferenceSolutionKey: {
+            type: "hangoutsMeet",
+          },
+        },
+      },
+    }
+
+    const response =
+      await calendar.events.insert({
+
+        calendarId:
+          process.env.GOOGLE_CALENDAR_ID,
+
+        requestBody: event,
+
+        conferenceDataVersion: 1,
+
+        sendUpdates: "all",
+      })
+
+    console.log(
+      "GOOGLE EVENT CREATED:",
+      response.data
+    )
+
+    return {
+      success: true,
+
+      hangoutLink:
+        response.data.hangoutLink || "",
+
+      eventId:
+        response.data.id || "",
+    }
+
+  } catch (error) {
+
+    console.error(
+      "GOOGLE CALENDAR ERROR:",
+      error
+    )
+
+    return {
+      success: false,
+
+      hangoutLink: "",
+
+      eventId: "",
+    }
   }
-
-  const response =
-    await calendar.events.insert({
-
-      calendarId: "https://calendar.google.com/calendar/embed?src=pathakshipra7%40gmail.com&ctz=Asia%2FKolkata",
-
-      requestBody: event,
-
-      conferenceDataVersion: 1,
-
-      sendUpdates: "all",
-    })
-
-console.log(
-  "EVENT CREATED:",
-  response.data
-)
-
-return {
-  success: true,
-
-  hangoutLink:
-    response.data.hangoutLink || "",
-
-  eventId:
-    response.data.id,
-}
-
-
 }
 
