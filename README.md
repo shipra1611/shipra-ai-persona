@@ -1,4 +1,4 @@
-# Shipra — AI Persona (Scaler AI Engineer Screening)
+# Shipra - AI Persona 
 
 > **Live system.** Chat interface + Voice agent + Calendar booking. No human in loop.
 
