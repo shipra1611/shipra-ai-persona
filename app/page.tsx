@@ -9,6 +9,7 @@ import {
 } from 'react'
 
 import { marked } from 'marked'
+import Vapi from '@vapi-ai/web'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -17,26 +18,24 @@ interface Message {
   latencyMs?: number
 }
 
-const SUGGESTED_QUESTIONS = [
-  'Tell me about LakePulse AI',
-  'What engineering tradeoffs came up?',
-  'How does Shipra debug AI systems?',
-  'What was the Clever Hans finding?',
-  'Book an interview call',
-]
-
 const CALENDLY_URL =
   process.env
     .NEXT_PUBLIC_CALENDLY_URL ||
-  'https://calendly.com/your-link'
+  'https://calendly.com/f20231038-hyderabad/new-meeting'
 
 const GITHUB_URL =
   'https://github.com/shipra1611'
 
 const LINKEDIN_URL =
-  'https://www.linkedin.com/in/shipra-pathak-401a4230b/'
+  'https://linkedin.com/in/shipra-pathak'
 
 
+
+const VAPI_PUBLIC_KEY =
+  '97844602-6d09-46d6-9abe-cbfa74480028'
+
+const VAPI_ASSISTANT_ID =
+  '8e0328a2-4a00-45bb-91d2-64fae64bc0b8'
 
 function renderMarkdown(
   text: string
@@ -57,7 +56,6 @@ function TypingIndicator() {
       style={{
         color: '#64748b',
         fontSize: '14px',
-        paddingLeft: '4px',
       }}
     >
       Thinking...
@@ -70,14 +68,14 @@ export default function Home() {
     useState<Message[]>([
       {
         role: 'assistant',
-        content: `Heya, I'm Shipra Pathak's AI Engineering Assistant.
+        content: `Hi, I'm Shipra Pathak's AI engineering assistant.
 
 I can answer questions about:
-- AI systems
-- infrastructure projects
+- AI systems projects
+- ML infrastructure
 - research workflows
 - debugging approaches
-- engineering tradeoffs
+- system design tradeoffs
 - deployment decisions
 - internships and experience
 
@@ -97,8 +95,23 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
     setShowCalendly,
   ] = useState(false)
 
+  const [
+    isCallActive,
+    setIsCallActive,
+  ] = useState(false)
+
+  const [callStatus, setCallStatus] =
+    useState('Idle')
+
+  const [
+    showVoiceOverlay,
+    setShowVoiceOverlay,
+  ] = useState(false)
+
   const messagesEndRef =
     useRef<HTMLDivElement>(null)
+
+  const vapiRef = useRef<any>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView(
@@ -108,22 +121,95 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
     )
   }, [messages])
 
-  const detectBookingIntent = (
-    text: string
-  ) => {
-    const bookingWords = [
-      'book',
-      'schedule',
-      'meeting',
-      'call',
-      'interview',
-      'availability',
-    ]
-
-    return bookingWords.some((w) =>
-      text.toLowerCase().includes(w)
+  useEffect(() => {
+    vapiRef.current = new Vapi(
+      VAPI_PUBLIC_KEY
     )
-  }
+
+    vapiRef.current.on(
+      'call-start',
+      () => {
+        setIsCallActive(true)
+
+        setShowVoiceOverlay(true)
+
+        setCallStatus(
+          'Voice interview active'
+        )
+      }
+    )
+
+    vapiRef.current.on(
+      'call-end',
+      () => {
+        setIsCallActive(false)
+
+        setShowVoiceOverlay(false)
+
+        setCallStatus(
+          'Call ended'
+        )
+      }
+    )
+
+    vapiRef.current.on(
+      'speech-start',
+      () => {
+        setCallStatus(
+          'Assistant speaking...'
+        )
+      }
+    )
+
+    vapiRef.current.on(
+      'speech-end',
+      () => {
+        setCallStatus(
+          'Listening...'
+        )
+      }
+    )
+
+    return () => {
+      vapiRef.current?.stop()
+    }
+  }, [])
+
+  const startVoiceCall =
+    async () => {
+      try {
+        setCallStatus(
+          'Connecting...'
+        )
+
+        await vapiRef.current.start(
+          VAPI_ASSISTANT_ID
+        )
+      } catch (err) {
+        console.error(err)
+
+        setCallStatus(
+          'Connection failed'
+        )
+      }
+    }
+
+  const stopVoiceCall =
+    async () => {
+      try {
+        await vapiRef.current.stop()
+
+        setIsCallActive(false)
+
+        setShowVoiceOverlay(false)
+
+        setCallStatus(
+          'Call ended'
+        )
+      } catch (err) {
+        console.error(err)
+      }
+    }
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -148,14 +234,10 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
       ]
 
       setMessages(updatedMessages)
-      setInput('')
-      setIsLoading(true)
 
-      if (
-        detectBookingIntent(content)
-      ) {
-        setShowCalendly(true)
-      }
+      setInput('')
+
+      setIsLoading(true)
 
       try {
         const response = await fetch(
@@ -224,265 +306,211 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
       !e.shiftKey
     ) {
       e.preventDefault()
+
       sendMessage(input)
     }
   }
 
   return (
-    <div
-      style={{
-        height: '100vh',
-        overflow: 'hidden',
-        background:
-          'linear-gradient(to bottom, #f8fafc, #eef2ff)',
-        color: '#0f172a',
-        fontFamily:
-          'Inter, sans-serif',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* HEADER */}
-      <header
+    <>
+      <style jsx global>{`
+        @keyframes pulse {
+          0% {
+            transform: scale(1);
+            opacity: 1;
+          }
+
+          50% {
+            transform: scale(1.08);
+            opacity: 0.88;
+          }
+
+          100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
+      <div
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backdropFilter:
-            'blur(10px)',
+          height: '100vh',
+          overflow: 'hidden',
           background:
-            'rgba(255,255,255,0.75)',
-          borderBottom:
-            '1px solid rgba(226,232,240,0.8)',
+            'linear-gradient(to bottom, #f8fafc, #eef2ff)',
+          color: '#0f172a',
+          fontFamily:
+            'Inter, sans-serif',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <div
+        {/* HEADER */}
+
+        <header
           style={{
-            maxWidth: '1150px',
-            margin: '0 auto',
-            padding:
-              '18px 24px',
-            display: 'flex',
-            justifyContent:
-              'space-between',
-            alignItems: 'center',
+            position: 'sticky',
+            top: 0,
+            zIndex: 50,
+            backdropFilter:
+              'blur(10px)',
+            background:
+              'rgba(255,255,255,0.75)',
+            borderBottom:
+              '1px solid rgba(226,232,240,0.8)',
           }}
         >
-          {/* LEFT */}
-          <div>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: '18px',
-                letterSpacing:
-                  '-0.02em',
-              }}
-            >
-              Shipra Pathak
-            </div>
-
-            <div
-              style={{
-                fontSize: '13px',
-                color: '#64748b',
-                marginTop: '2px',
-              }}
-            >
-              AI Systems & ML Engineering
-            </div>
-          </div>
-
-          {/* RIGHT */}
           <div
             style={{
+              maxWidth: '1150px',
+              margin: '0 auto',
+              padding:
+                '18px 24px',
               display: 'flex',
+              justifyContent:
+                'space-between',
               alignItems: 'center',
-              gap: '18px',
             }}
           >
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                textDecoration:
-                  'none',
-                color: '#475569',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              GitHub
-            </a>
-
-            <a
-              href={LINKEDIN_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                textDecoration:
-                  'none',
-                color: '#475569',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              LinkedIn
-            </a>
-
-            <a
-             
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                textDecoration:
-                  'none',
-                color: '#475569',
-                fontSize: '14px',
-                fontWeight: 500,
-              }}
-            >
-              Resume
-            </a>
-
-            <button
-              onClick={() =>
-                setShowCalendly(
-                  true
-                )
-              }
-              style={{
-                padding:
-                  '10px 16px',
-                background:
-                  '#0f172a',
-                color: 'white',
-                border: 'none',
-                borderRadius:
-                  '10px',
-                cursor:
-                  'pointer',
-                fontWeight: 600,
-                boxShadow:
-                  '0 1px 2px rgba(0,0,0,0.08)',
-              }}
-            >
-              Book Interview
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* CHAT AREA */}
-      <main
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          width: '100%',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '900px',
-            margin: '0 auto',
-            padding:
-              '40px 20px 140px',
-            display: 'flex',
-            flexDirection:
-              'column',
-            gap: '24px',
-          }}
-        >
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                justifyContent:
-                  msg.role ===
-                  'user'
-                    ? 'flex-end'
-                    : 'flex-start',
-              }}
-            >
+            <div>
               <div
                 style={{
-                  maxWidth: '80%',
-                  background:
-                    msg.role ===
-                    'user'
-                      ? '#dbeafe'
-                      : 'rgba(255,255,255,0.92)',
-                  border:
-                    '1px solid rgba(226,232,240,0.9)',
-                  borderRadius:
-                    '18px',
-                  padding:
-                    '18px 20px',
-                  lineHeight: 1.75,
-                  fontSize: '15px',
-                  boxShadow:
-                    '0 4px 12px rgba(15,23,42,0.04)',
-                  backdropFilter:
-                    'blur(10px)',
+                  fontWeight: 700,
+                  fontSize: '18px',
                 }}
               >
-                {msg.role ===
-                'assistant' ? (
-                  <div
-                    dangerouslySetInnerHTML={{
-                      __html:
-                        renderMarkdown(
-                          msg.content
-                        ),
-                    }}
-                  />
-                ) : (
-                  <span>
-                    {msg.content}
-                  </span>
-                )}
+                Shipra Pathak
+              </div>
 
-                {msg.latencyMs && (
-                  <div
-                    style={{
-                      marginTop:
-                        '10px',
-                      fontSize:
-                        '12px',
-                      color:
-                        '#94a3b8',
-                    }}
-                  >
-                    {
-                      msg.latencyMs
-                    }
-                    ms
-                  </div>
-                )}
+              <div
+                style={{
+                  fontSize: '13px',
+                  color: '#64748b',
+                  marginTop: '2px',
+                }}
+              >
+                AI Systems & ML Engineering
               </div>
             </div>
-          ))}
 
-          {isLoading && (
-            <TypingIndicator />
-          )}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '18px',
+              }}
+            >
+              <a
+                href={GITHUB_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  textDecoration:
+                    'none',
+                  color: '#475569',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                GitHub
+              </a>
 
-          <div
-            ref={messagesEndRef}
-          />
-        </div>
-      </main>
+              <a
+                href={LINKEDIN_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  textDecoration:
+                    'none',
+                  color: '#475569',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                }}
+              >
+                LinkedIn
+              </a>
 
-      {/* SUGGESTIONS */}
-      {messages.length <= 1 && (
-        <div
+              {!isCallActive ? (
+                <button
+                  onClick={
+                    startVoiceCall
+                  }
+                  style={{
+                    padding:
+                      '10px 16px',
+                    background:
+                      '#ffffff',
+                    color:
+                      '#0f172a',
+                    border:
+                      '1px solid rgba(203,213,225,0.8)',
+                    borderRadius:
+                      '10px',
+                    cursor:
+                      'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  Start Voice Interview
+                </button>
+              ) : (
+                <button
+                  onClick={
+                    stopVoiceCall
+                  }
+                  style={{
+                    padding:
+                      '10px 16px',
+                    background:
+                      '#dc2626',
+                    color:
+                      'white',
+                    border:
+                      'none',
+                    borderRadius:
+                      '10px',
+                    cursor:
+                      'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  End Voice Interview
+                </button>
+              )}
+
+              <button
+                onClick={() =>
+                  setShowCalendly(
+                    true
+                  )
+                }
+                style={{
+                  padding:
+                    '10px 16px',
+                  background:
+                    '#0f172a',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius:
+                    '10px',
+                  cursor:
+                    'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                Book Interview
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* CHAT */}
+
+        <main
           style={{
-            position: 'fixed',
-            bottom: '95px',
-            left: 0,
-            right: 0,
-            zIndex: 20,
+            flex: 1,
+            overflowY: 'auto',
+            width: '100%',
           }}
         >
           <div
@@ -490,181 +518,315 @@ I'm grounded on Shipra's real resume and GitHub repositories.`,
               maxWidth: '900px',
               margin: '0 auto',
               padding:
-                '0 20px',
+                '40px 20px 140px',
               display: 'flex',
-              flexWrap: 'wrap',
-              gap: '10px',
+              flexDirection:
+                'column',
+              gap: '24px',
             }}
           >
-            {SUGGESTED_QUESTIONS.map(
-              (q) => (
-                <button
-                  key={q}
-                  onClick={() =>
-                    sendMessage(q)
-                  }
+            {messages.map(
+              (msg, i) => (
+                <div
+                  key={i}
                   style={{
-                    background:
-                      'rgba(255,255,255,0.92)',
-                    border:
-                      '1px solid rgba(203,213,225,0.8)',
-                    borderRadius:
-                      '999px',
-                    padding:
-                      '10px 14px',
-                    cursor:
-                      'pointer',
-                    fontSize:
-                      '14px',
-                    color:
-                      '#334155',
-                    boxShadow:
-                      '0 2px 6px rgba(15,23,42,0.04)',
+                    display: 'flex',
+                    justifyContent:
+                      msg.role ===
+                      'user'
+                        ? 'flex-end'
+                        : 'flex-start',
                   }}
                 >
-                  {q}
-                </button>
+                  <div
+                    style={{
+                      maxWidth: '80%',
+                      background:
+                        msg.role ===
+                        'user'
+                          ? '#dbeafe'
+                          : 'rgba(255,255,255,0.92)',
+                      border:
+                        '1px solid rgba(226,232,240,0.9)',
+                      borderRadius:
+                        '18px',
+                      padding:
+                        '18px 20px',
+                      lineHeight: 1.75,
+                      fontSize: '15px',
+                      boxShadow:
+                        '0 4px 12px rgba(15,23,42,0.04)',
+                    }}
+                  >
+                    {msg.role ===
+                    'assistant' ? (
+                      <div
+                        dangerouslySetInnerHTML={{
+                          __html:
+                            renderMarkdown(
+                              msg.content
+                            ),
+                        }}
+                      />
+                    ) : (
+                      <span>
+                        {
+                          msg.content
+                        }
+                      </span>
+                    )}
+
+                    {msg.latencyMs && (
+                      <div
+                        style={{
+                          marginTop:
+                            '10px',
+                          fontSize:
+                            '12px',
+                          color:
+                            '#94a3b8',
+                        }}
+                      >
+                        {
+                          msg.latencyMs
+                        }
+                        ms
+                      </div>
+                    )}
+                  </div>
+                </div>
               )
             )}
+
+            {isLoading && (
+              <TypingIndicator />
+            )}
+
+            <div
+              ref={messagesEndRef}
+            />
           </div>
-        </div>
-      )}
+        </main>
 
-      {/* INPUT */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding:
-            '20px 20px 28px',
-          background:
-            'linear-gradient(to top, rgba(248,250,252,0.98), rgba(248,250,252,0.7))',
-          backdropFilter:
-            'blur(12px)',
-          borderTop:
-            '1px solid rgba(226,232,240,0.8)',
-        }}
-      >
+        {/* INPUT */}
+
         <div
-          style={{
-            maxWidth: '900px',
-            margin: '0 auto',
-            display: 'flex',
-            gap: '12px',
-          }}
-        >
-          <textarea
-            value={input}
-            onChange={(e) =>
-              setInput(
-                e.target.value
-              )
-            }
-            onKeyDown={
-              handleKeyDown
-            }
-            placeholder="Ask about projects, systems, architecture, debugging, or research..."
-            rows={1}
-            style={{
-              flex: 1,
-              resize: 'none',
-              border:
-                '1px solid rgba(203,213,225,0.9)',
-              borderRadius:
-                '14px',
-              padding:
-                '15px 16px',
-              fontSize: '15px',
-              outline: 'none',
-              background:
-                'rgba(255,255,255,0.92)',
-              color:
-                '#0f172a',
-              boxShadow:
-                '0 4px 10px rgba(15,23,42,0.04)',
-            }}
-          />
-
-          <button
-            onClick={() =>
-              sendMessage(input)
-            }
-            disabled={
-              !input.trim() ||
-              isLoading
-            }
-            style={{
-              padding:
-                '0 24px',
-              borderRadius:
-                '14px',
-              border: 'none',
-              background:
-                '#0f172a',
-              color: 'white',
-              fontWeight: 600,
-              cursor: 'pointer',
-              boxShadow:
-                '0 4px 12px rgba(15,23,42,0.08)',
-            }}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-
-      {/* CALENDLY */}
-      {showCalendly && (
-        <div
-          onClick={() =>
-            setShowCalendly(
-              false
-            )
-          }
           style={{
             position: 'fixed',
-            inset: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            padding:
+              '20px 20px 28px',
             background:
-              'rgba(15,23,42,0.45)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent:
-              'center',
-            padding: '20px',
-            zIndex: 100,
+              'linear-gradient(to top, rgba(248,250,252,0.98), rgba(248,250,252,0.7))',
             backdropFilter:
-              'blur(6px)',
+              'blur(12px)',
+            borderTop:
+              '1px solid rgba(226,232,240,0.8)',
           }}
         >
           <div
-            onClick={(e) =>
-              e.stopPropagation()
-            }
             style={{
-              width: '100%',
-              maxWidth: '760px',
-              height: '80vh',
-              background:
-                'white',
-              borderRadius:
-                '18px',
-              overflow:
-                'hidden',
-              boxShadow:
-                '0 20px 60px rgba(15,23,42,0.18)',
+              maxWidth: '900px',
+              margin: '0 auto',
+              display: 'flex',
+              gap: '12px',
             }}
           >
-            <iframe
-              src={CALENDLY_URL}
-              width="100%"
-              height="100%"
+            <textarea
+              value={input}
+              onChange={(e) =>
+                setInput(
+                  e.target.value
+                )
+              }
+              onKeyDown={
+                handleKeyDown
+              }
+              placeholder="Ask about projects, infrastructure, research, debugging, or engineering decisions..."
+              rows={1}
+              style={{
+                flex: 1,
+                resize: 'none',
+                border:
+                  '1px solid rgba(203,213,225,0.9)',
+                borderRadius:
+                  '14px',
+                padding:
+                  '15px 16px',
+                fontSize: '15px',
+                outline: 'none',
+                background:
+                  'rgba(255,255,255,0.92)',
+              }}
             />
+
+            <button
+              onClick={() =>
+                sendMessage(input)
+              }
+              disabled={
+                !input.trim() ||
+                isLoading
+              }
+              style={{
+                padding:
+                  '0 24px',
+                borderRadius:
+                  '14px',
+                border: 'none',
+                background:
+                  '#0f172a',
+                color: 'white',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Send
+            </button>
           </div>
         </div>
-      )}
-    </div>
+
+        {/* VOICE OVERLAY */}
+
+        {showVoiceOverlay && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background:
+                'rgba(15,23,42,0.82)',
+              backdropFilter:
+                'blur(12px)',
+              zIndex: 200,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent:
+                'center',
+              flexDirection:
+                'column',
+              gap: '28px',
+            }}
+          >
+            <div
+              style={{
+                width: '130px',
+                height: '130px',
+                borderRadius:
+                  '999px',
+                background:
+                  'linear-gradient(to bottom right, #2563eb, #7c3aed)',
+                display: 'flex',
+                alignItems:
+                  'center',
+                justifyContent:
+                  'center',
+                color: 'white',
+                fontSize: '44px',
+                fontWeight: 700,
+                boxShadow:
+                  '0 0 60px rgba(59,130,246,0.35)',
+                animation:
+                  'pulse 2s infinite',
+              }}
+            >
+              🎤
+            </div>
+
+            <div
+              style={{
+                color: 'white',
+                fontSize: '30px',
+                fontWeight: 700,
+              }}
+            >
+              Voice Interview Active
+            </div>
+
+            <div
+              style={{
+                color:
+                  'rgba(255,255,255,0.75)',
+                fontSize: '16px',
+              }}
+            >
+              {callStatus}
+            </div>
+
+            <button
+              onClick={
+                stopVoiceCall
+              }
+              style={{
+                marginTop:
+                  '10px',
+                padding:
+                  '14px 28px',
+                borderRadius:
+                  '14px',
+                border: 'none',
+                background:
+                  '#dc2626',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              End Conversation
+            </button>
+          </div>
+        )}
+
+        {/* CALENDLY */}
+
+        {showCalendly && (
+          <div
+            onClick={() =>
+              setShowCalendly(
+                false
+              )
+            }
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background:
+                'rgba(15,23,42,0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent:
+                'center',
+              padding: '20px',
+              zIndex: 100,
+            }}
+          >
+            <div
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+              style={{
+                width: '100%',
+                maxWidth: '760px',
+                height: '80vh',
+                background:
+                  'white',
+                borderRadius:
+                  '18px',
+                overflow:
+                  'hidden',
+              }}
+            >
+              <iframe
+                src={CALENDLY_URL}
+                width="100%"
+                height="100%"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
 

@@ -1,131 +1,367 @@
-import { NextRequest, NextResponse } from 'next/server'
+
+import {
+  NextRequest,
+  NextResponse,
+} from 'next/server'
+
 import Anthropic from '@anthropic-ai/sdk'
-import { buildRAGContext, loadSystemPrompt } from '@/app/lib/rag'
+
+import {
+  buildRAGContext,
+  loadSystemPrompt,
+} from '@/app/lib/rag'
 
 export const runtime = 'nodejs'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! })
+const client = new Anthropic({
+  apiKey:
+    process.env
+      .ANTHROPIC_API_KEY!,
+})
 
-// Vapi sends webhooks for: assistant-request, function-call, end-of-call-report
-export async function POST(req: NextRequest) {
+const CALENDLY_URL =
+  process.env
+    .CALENDLY_URL ||
+  'https://calendly.com/f20231038-hyderabad/new-meeting'
+
+export async function POST(
+  req: NextRequest
+) {
   try {
-    const body = await req.json()
+    const body =
+      await req.json()
+
+    console.log(
+      'Vapi webhook:',
+      JSON.stringify(
+        body,
+        null,
+        2
+      )
+    )
+
     const { message } = body
 
-    // Handle different Vapi message types
-    switch (message?.type) {
+    switch (
+      message?.type
+    ) {
       case 'assistant-request': {
-        // Vapi is asking for the assistant configuration
         return NextResponse.json({
-          assistant: buildVapiAssistant()
+          assistant:
+            buildVapiAssistant(),
         })
       }
 
       case 'function-call': {
-        // Vapi calling our functions (e.g., check_availability, book_meeting)
-        const { functionCall } = message
-        
-        if (functionCall?.name === 'check_availability') {
-          return NextResponse.json({
-            result: `Shipra is available weekdays. The easiest way to book is at ${process.env.CALENDLY_URL || 'your-calendly-link'}. Would you like me to walk you through booking a slot?`
-          })
-        }
-        
-        if (functionCall?.name === 'get_context') {
-          const { query } = functionCall.parameters
-          const context = buildRAGContext(query || '')
-          const system = loadSystemPrompt()
-          
-          const response = await client.messages.create({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 512,
-            system: `${system}\n\nKNOWLEDGE BASE:\n${context}\n\nRespond concisely for voice — no markdown, plain conversational sentences.`,
-            messages: [{ role: 'user', content: query }]
-          })
-          
-          return NextResponse.json({
-            result: response.content[0].type === 'text' ? response.content[0].text : 'I can answer that — what specifically would you like to know?'
-          })
+        const functionCall =
+          message.functionCall
+
+        // OPEN SCHEDULING
+        if (
+          functionCall?.name ===
+          'open_scheduling'
+        ) {
+          return NextResponse.json(
+            {
+              result:
+                'Opening the scheduling window now. You can choose any convenient slot directly through Calendly.',
+
+              actions: [
+                {
+                  type: 'open_url',
+
+                  url: CALENDLY_URL,
+                },
+              ],
+            }
+          )
         }
 
-        return NextResponse.json({ result: 'Function not recognized.' })
+        // RAG CONTEXT LOOKUP
+        if (
+          functionCall?.name ===
+          'get_context'
+        ) {
+          const query =
+            functionCall
+              ?.parameters
+              ?.query || ''
+
+          const ragContext =
+            buildRAGContext(
+              query
+            )
+
+          const systemPrompt =
+            loadSystemPrompt()
+
+          const response =
+            await client.messages.create(
+              {
+                model:
+                  'claude-sonnet-4-20250514',
+
+                max_tokens: 350,
+
+                system: `
+${systemPrompt}
+
+KNOWLEDGE BASE:
+${ragContext}
+
+IMPORTANT:
+- Respond naturally for voice
+- No markdown
+- No bullet points
+- Keep answers concise
+- Sound conversational
+                `,
+
+                messages: [
+                  {
+                    role:
+                      'user',
+
+                    content:
+                      query,
+                  },
+                ],
+              }
+            )
+
+          let answer = ''
+
+          for (const block of response.content) {
+            if (
+              block.type ===
+              'text'
+            ) {
+              answer +=
+                block.text
+            }
+          }
+
+          return NextResponse.json(
+            {
+              result:
+                answer ||
+                "I can help with that. Could you clarify what you'd like to know about Shipra?",
+            }
+          )
+        }
+
+        return NextResponse.json({
+          result:
+            'Function not recognized.',
+        })
       }
 
       case 'end-of-call-report': {
-        // Log for eval purposes
-        console.log('Call ended:', {
-          duration: message.durationSeconds,
-          transcript: message.transcript?.slice(0, 200),
-          summary: message.summary,
+        console.log(
+          'Call ended:',
+          {
+            duration:
+              message.durationSeconds,
+
+            summary:
+              message.summary,
+
+            transcript:
+              message.transcript?.slice(
+                0,
+                500
+              ),
+          }
+        )
+
+        return NextResponse.json({
+          received: true,
         })
-        return NextResponse.json({ received: true })
       }
 
-      default:
-        return NextResponse.json({ received: true })
+      default: {
+        return NextResponse.json({
+          received: true,
+        })
+      }
     }
-  } catch (err) {
-    console.error('Vapi webhook error:', err)
-    return NextResponse.json({ error: 'Webhook error' }, { status: 500 })
+  } catch (error) {
+    console.error(
+      'Voice webhook error:',
+      error
+    )
+
+    return NextResponse.json(
+      {
+        error:
+          'Webhook processing failed.',
+      },
+      {
+        status: 500,
+      }
+    )
   }
 }
 
 function buildVapiAssistant() {
   return {
-    name: "Shipra's AI Representative",
-    voice: {
-      provider: "11labs",
-      voiceId: "rachel", // Change to preferred ElevenLabs voice
+    name:
+      "Shipra Recruiting Assistant",
+
+    firstMessage:
+      "Hi, I'm Shipra Pathak's AI recruiting representative. Shipra is an AI systems engineer focused on healthcare AI, observability tooling, and reliable AI infrastructure. She built this voice system herself as part of her engineering work. I can discuss her projects, technical background, and help schedule a conversation. What would you like to know?",
+
+    endCallMessage:
+      "Great speaking with you. You can use Shipra's scheduling link to book a convenient time to connect further.",
+
+    endCallPhrases: [
+      'goodbye',
+      'bye',
+      "that's all",
+      'thank you bye',
+      'take care',
+    ],
+
+    silenceTimeoutSeconds: 20,
+
+    maxDurationSeconds: 1200,
+
+    backgroundSound: 'off',
+
+    backchannelingEnabled: true,
+
+    backgroundDenoisingEnabled: true,
+
+    startSpeakingPlan: {
+      waitSeconds: 0.3,
+
+      smartEndpointingEnabled: true,
     },
+
+    stopSpeakingPlan: {
+      numWords: 3,
+
+      voiceSeconds: 0.2,
+
+      backoffSeconds: 1,
+    },
+
+    voice: {
+      provider: '11labs',
+
+      voiceId:
+        '21m00Tcm4TlvDq8ikWAM',
+
+      stability: 0.45,
+
+      similarityBoost: 0.8,
+
+      useSpeakerBoost: true,
+    },
+
     model: {
-      provider: "anthropic",
-      model: "claude-sonnet-4-20250514",
-      systemPrompt: buildVoiceSystemPrompt(),
+      provider:
+        'anthropic',
+
+      model:
+        'claude-sonnet-4-20250514',
+
+      temperature: 0.5,
+
+      maxTokens: 400,
+
+      systemPrompt:
+        buildVoiceSystemPrompt(),
+
       functions: [
         {
-          name: "get_context",
-          description: "Get information about Shipra's background, projects, or skills to answer a question",
+          name:
+            'get_context',
+
+          description:
+            "Retrieve grounded information about Shipra's projects, background, research, or engineering work.",
+
           parameters: {
-            type: "object",
+            type: 'object',
+
             properties: {
-              query: { type: "string", description: "The question to answer about Shipra" }
+              query: {
+                type: 'string',
+
+                description:
+                  'Question about Shipra',
+              },
             },
-            required: ["query"]
-          }
+
+            required: ['query'],
+          },
         },
+
         {
-          name: "check_availability",
-          description: "Check Shipra's availability and provide booking link",
+          name:
+            'open_scheduling',
+
+          description:
+            'Open the Calendly scheduling flow when the caller wants to schedule an interview or meeting.',
+
           parameters: {
-            type: "object",
-            properties: {},
-            required: []
-          }
-        }
-      ]
+            type: 'object',
+
+            properties: {
+              intent: {
+                type: 'string',
+
+                description:
+                  'Scheduling intent',
+              },
+            },
+          },
+        },
+      ],
     },
-    firstMessage: "Hi! I'm Shipra's AI representative. Shipra is a healthcare AI researcher currently interning at BrainSightAI — she built me to handle screening calls so her application gets evaluated on substance. I can answer questions about her background, projects, and skills, and I can help you schedule an interview. What would you like to know?",
-    endCallMessage: "Thanks for the call! You should receive a calendar confirmation by email. Looking forward to the conversation.",
-    endCallPhrases: ["goodbye", "bye", "that's all", "thank you, bye"],
   }
 }
 
-function buildVoiceSystemPrompt(): string {
-  const ragContext = buildRAGContext('general background skills projects')
-  return `You are Shipra Kumari's AI representative handling a phone screening call.
+function buildVoiceSystemPrompt() {
+  const ragContext =
+    buildRAGContext(
+      'general background projects skills experience'
+    )
 
-RULES:
-1. Speak naturally and conversationally — this is a voice call, no markdown
-2. Keep answers concise (30-60 seconds per response) — voice is not text
-3. Be specific with evidence from Shipra's actual work
-4. If you don't know something, say "That specific detail isn't something I have — Shipra can address it directly when you meet"
-5. For scheduling: offer the Calendly link or ask for their email
-6. Handle interruptions gracefully — don't restart sentences from the beginning
-7. If asked about availability: "Shipra is flexible on timing — she's based in India so IST timezone, but happy to accommodate your hours"
-8. NEVER hallucinate metrics, papers, or credentials not in your knowledge
+  return `
+You are Shipra Pathak's AI recruiting representative.
 
-KNOWLEDGE:
-${ragContext.slice(0, 3000)}
+You are speaking with:
+- recruiters
+- engineering managers
+- startup founders
+- AI researchers
+- hiring teams
 
-This call is itself a demonstration of what Shipra can build. Mention that naturally if it comes up.`
+Your purpose is to represent Shipra as:
+- technically strong
+- highly ambitious
+- systems-oriented
+- practical
+- thoughtful
+- fast-learning
+- production-minded
+
+IMPORTANT RULES:
+- Keep answers concise for voice
+- Speak naturally and conversationally
+- Never sound robotic
+- Avoid long monologues
+- Never hallucinate credentials or experience
+- If you do not know something, say so honestly
+- Never claim a meeting has been booked unless confirmed externally
+- Direct users to Calendly for scheduling
+- Handle interruptions naturally
+
+BACKGROUND KNOWLEDGE:
+${ragContext.slice(0, 4000)}
+
+This voice system itself was designed and engineered by Shipra as part of her AI systems work.
+`
 }
+
